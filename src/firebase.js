@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCjLG22tW3Je_dOOLwvXXXO55vMOTPiQbY",
+  apiKey: "AIzaSyDRphgL9iXp3OGHTOrOxebWQiduhId1jhI",
   databaseURL: "https://aqi-monitoring-sytem-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 
