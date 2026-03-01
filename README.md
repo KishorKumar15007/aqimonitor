@@ -1,8 +1,13 @@
 # 🌫️ SmartSense – Advanced IoT Indoor Air Quality Monitoring System
 
+![ESP32](https://img.shields.io/badge/ESP32-000000?logo=espressif&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black)
+![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)
+![License](https://img.shields.io/badge/License-Academic-lightgrey)
+
 ## 📌 Overview
 
-SmartSense is a production‑grade IoT-based Indoor Air Quality (IAQ) monitoring system built using ESP32.  
+SmartSense is a production-grade IoT-based Indoor Air Quality (IAQ) monitoring system built on the ESP32 platform with real-time cloud integration.
 It measures particulate matter (PM1.0, PM2.5, PM10), temperature, pressure, and Carbon Monoxide levels in real-time.
 
 The system:
@@ -13,13 +18,50 @@ The system:
 - Generates threshold-based alerts
 - Powers a live web dashboard with analytics
 
-This project demonstrates a scalable IoT architecture with real-time monitoring, aggregation layers, retention logic, and alert systems.
+This project demonstrates a scalable, cloud-integrated IoT architecture with real-time data ingestion, aggregation layers, rolling retention logic, and intelligent alert handling.
 
 ---
 
-# 🚀 Features
+## 🧰 Tech Stack
 
-## 🔴 Real-Time Monitoring
+- **Microcontroller:** ESP32 (Arduino Framework)
+- **Sensors:** PMS5003, MQ-7, BMP280
+- **Cloud Backend:** Firebase Realtime Database
+- **Frontend:** React + Vite
+- **Styling:** TailwindCSS
+- **Deployment:** Firebase Hosting
+- **Firmware Language:** C++ (Arduino)
+
+---
+
+## 📂 Project Structure
+
+```
+Smartsense
+    ├── frontend/ # React + Vite dashboard
+    ├── firmware/ # ESP32 Arduino firmware
+    ├── firebase.json
+    ├── .firebaserc 
+    └── README.md
+```
+
+---
+
+## 🏗️ System Architecture
+
+[ ESP32 Sensors ]
+          ↓
+[ AQI Calculation + Aggregation ]
+          ↓
+[ Firebase Realtime Database ]
+          ↓
+[ Web Dashboard (Analytics + Alerts) ]
+
+---
+
+## 🚀 Features
+
+### 🔴 Real-Time Monitoring
 - AQI calculation (PM2.5 & PM10 based)
 - PM1.0 / PM2.5 / PM10 readings (PMS5003)
 - Temperature & Pressure (BMP280)
@@ -27,7 +69,7 @@ This project demonstrates a scalable IoT architecture with real-time monitoring,
 - Live device heartbeat system
 - Epoch timestamp logging
 
-## 📊 Multi-Layer Data Architecture
+### 📊 Multi-Layer Data Architecture
 Data is structured into 4 layers:
 
 1. **Live Snapshot**
@@ -37,19 +79,19 @@ Data is structured into 4 layers:
 
 This enables scalable frontend analytics without overloading Firebase.
 
-## 🚨 Intelligent Alert System
+### 🚨 Intelligent Alert System
 - AQI Severe Alert (AQI > 300)
 - CO HIGH Alert
 - Alert deduplication (prevents spam)
 - 7-day alert retention
 
-## ☁️ Cloud Architecture
+### ☁️ Cloud Architecture
 - Firebase Realtime Database integration
 - Structured JSON uploads
 - Automatic data retention
 - Device online/offline detection
 
-## 🖥️ User Interface
+### 🖥️ User Interface
 - 128x64 SSD1306 OLED display
 - Live data visualization
 - Status indicators
@@ -57,7 +99,7 @@ This enables scalable frontend analytics without overloading Firebase.
 
 ---
 
-# 🛠️ Hardware Used
+## 🛠️ Hardware Used
 
 | Component | Model |
 |-----------|--------|
@@ -70,26 +112,26 @@ This enables scalable frontend analytics without overloading Firebase.
 
 ---
 
-# 🔌 Pin Configuration
+## 🔌 Pin Configuration
 
-## I2C (OLED + BMP280)
+### I2C (OLED + BMP280)
 - SDA → GPIO 21  
 - SCL → GPIO 22  
 
-## PMS5003
+### PMS5003
 - TX → GPIO 4  
 - RX → GPIO 5  
 - VCC → 5V  
 - GND → GND  
 
-## MQ-7
+### MQ-7
 - AO → GPIO 19  
 - VCC → 5V  
 - GND → GND  
 
 ---
 
-# 📈 AQI Calculation Logic
+## 📈 AQI Calculation Logic
 
 AQI is calculated using Indian breakpoint interpolation logic.
 
@@ -121,49 +163,72 @@ AQI = max(AQI_PM2.5, AQI_PM10)
 
 ---
 
-# ☁️ Firebase Database Architecture
+## ☁️ Firebase Database Architecture
 
 ```
 devices
 └── device01
-├── live
-│ ├── aqi
-│ ├── pm1
-│ ├── pm25
-│ ├── pm10
-│ ├── temp
-│ ├── pressure
-│ ├── co_status
-│ └── timestamp
-│
-├── raw_10s
-│ └── {epoch}
-│ └── sensor snapshot
-│
-├── bucket_1min
-│ └── {epoch}
-│ ├── min
-│ ├── max
-│ ├── avg
-│ └── count
-│
-├── bucket_10min
-│ └── {epoch}
-│ ├── min
-│ ├── max
-│ ├── avg
-│ └── count
-│
-└── alerts
-└── {epoch}
-├── type
-├── value (optional)
-└── timestamp
+    ├── live
+    │   ├── aqi
+    │   ├── co_status
+    │   ├── pm1
+    │   ├── pm10
+    │   ├── pm25
+    │   ├── pressure
+    │   ├── temp 
+    │   └── timestamp
+    │
+    ├── raw_10s
+    │   └── {epoch}
+    │       ├── aqi
+    │       ├── co_status
+    │       ├── pm1
+    │       ├── pm10
+    │       ├── pm25
+    │       ├── pressure
+    │       ├── temp 
+    │       └── timestamp
+    │
+    ├── bucket_1min
+    │   └── {epoch}
+    │       ├── avg
+    │       ├── count
+    │       ├── max
+    │       └── min
+    │
+    ├── bucket_10min
+    │   └── {epoch}
+    │       ├── avg
+    │       ├── count
+    │       ├── max
+    │       └── min
+    │
+    └── alerts
+        └── {epoch}
+            ├── type
+            ├── value 
+            └── timestamp
+```
+---
+
+## 📦 Sample JSON Upload (Live Snapshot)
+
+```json
+{
+  "aqi": 52.68966,
+  "co_status": "SAFE",
+  "pm1": 21,
+  "pm10": 35,
+  "pm25": 32,
+  "pressure": 1006.1272,
+  "temp": 26.09,
+  "timestamp": 1772179164
+}
 ```
 
 ---
 
-# ⏱️ Data Retention Logic
+## ⏱️ Data Retention Logic
 
 | Data Type | Stored Every | Retained For |
 |------------|--------------|--------------|
@@ -177,7 +242,7 @@ Old data is automatically deleted to maintain rolling windows.
 
 ---
 
-# 🌐 Web Dashboard Features
+## 🌐 Web Dashboard Features
 
 The cloud dashboard includes:
 
@@ -191,7 +256,7 @@ The cloud dashboard includes:
 
 ---
 
-# 🧠 System Workflow
+## 🧠 System Workflow
 
 1. ESP32 boots
 2. Connects to WiFi
@@ -205,7 +270,7 @@ The cloud dashboard includes:
 
 ---
 
-# 🔐 Recommended Firebase Rules
+## 🔐 Recommended Firebase Rules
 
 ```json
 {
@@ -219,8 +284,9 @@ The cloud dashboard includes:
   }
 }
 ```
+---
 
-# ⚡ Power Requirements
+## ⚡ Power Requirements
 
 Estimated peak current draw: 500–600mA
 
@@ -230,7 +296,31 @@ Use:
 - Avoid weak USB ports
 - Avoid linear regulators for heater-based sensors
 
-# 🔮 Future Enhancements
+---
+
+## 🧑‍💻 Development Setup
+
+### Run Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Deploy to Firebase
+
+```bash
+firebase deploy
+```
+
+### Arduino Firmware
+
+Open firmware/ArduinoCode.ino in Arduino IDE.
+
+---
+
+## 🔮 Future Enhancements
 
 - Multi-device support
 - OTA firmware updates
@@ -239,7 +329,18 @@ Use:
 - AQI category color mapping
 - Role-based authentication
 
-# 👨‍💻 Authors
+---
+
+## 🏁 Project Status
+
+- Stable
+- Fully Cloud Integrated
+- Production-Ready IoT Architecture
+- Actively Maintained
+
+---
+
+## 👨‍💻 Authors
 
 - Kishor Kumar A
 - Pratheerth Krishnan
@@ -247,13 +348,9 @@ Use:
 - Akshat Kumar Dewangan
 - Aaron V Antony
 
-# 📄 License
+---
+
+## 📄 License
 
 - Open-source for academic and research use.
 - Commercial deployment requires authorization.
-
-# 🏁 Project Status
-
-- Stable
-- Fully Cloud Integrated
-- Production-Ready IoT Architecture
