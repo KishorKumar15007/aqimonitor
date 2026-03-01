@@ -49,13 +49,15 @@ Smartsense
 
 ## 🏗️ System Architecture
 
-[ ESP32 Sensors ]
-          ↓
-[ AQI Calculation + Aggregation ]
-          ↓
-[ Firebase Realtime Database ]
-          ↓
-[ Web Dashboard (Analytics + Alerts) ]
+```
+ESP32 Sensors
+        ↓
+AQI Calculation + Aggregation
+        ↓
+Firebase Realtime Database
+        ↓
+Web Dashboard (Analytics + Alerts)
+```
 
 ---
 
