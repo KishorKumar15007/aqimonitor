@@ -1,9 +1,7 @@
-<<<<<<< HEAD
-=======
 # randoms
 secrets.txt
+..bfg-report
 
->>>>>>> ef31e9e66e22e65bcc99a53d7469e8ac150f9c4c
 # Logs
 logs
 *.log
@@ -20,6 +18,8 @@ dist-ssr
 
 # Editor directories and files
 .env
+.env.*
+!.env.example
 .vscode/*
 !.vscode/extensions.json
 .idea
