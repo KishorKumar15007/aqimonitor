@@ -1,57 +1,135 @@
 import { useEffect, useState } from "react";
-import { ref, onValue } from "firebase/database";
-import { db } from "../firebase";
+import { getDatabase, ref, onValue } from "firebase/database";
+import { app } from "../firebase";
+
+const db = getDatabase(app);
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
+  const [live, setLive] = useState(null);
 
   useEffect(() => {
     const liveRef = ref(db, "devices/device01/live");
 
     const unsubscribe = onValue(liveRef, (snapshot) => {
       if (snapshot.exists()) {
-        setData(snapshot.val());
+        setLive(snapshot.val());
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  if (!data) return <div>Loading...</div>;
+  const formattedAQI = Math.round(live?.aqi ?? 0);
+  const formattedPressure = Math.round(live?.pressure ?? 0);
+  const formattedTemp = live?.temp
+    ? Number(live.temp).toFixed(1)
+    : "0.0";
+
+  const lastUpdated = live?.timestamp
+    ? new Date(live.timestamp * 1000).toLocaleTimeString()
+    : "--";
+
+  function getAQIColor(aqi) {
+    if (aqi <= 50) return "bg-green-500";
+    if (aqi <= 100) return "bg-yellow-500";
+    if (aqi <= 200) return "bg-orange-500";
+    if (aqi <= 300) return "bg-red-500";
+    return "bg-purple-600";
+  }
+
+  function getAQIStatus(aqi) {
+    if (aqi <= 50) return "Good";
+    if (aqi <= 100) return "Moderate";
+    if (aqi <= 200) return "Unhealthy";
+    if (aqi <= 300) return "Very Unhealthy";
+    return "Hazardous";
+  }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+    <div className="p-8 text-white">
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="AQI" value={data.aqi} highlight />
-        <StatCard title="PM2.5" value={data.pm25} />
-        <StatCard title="Temperature (°C)" value={data.temp} />
-        <StatCard title="CO Status" value={data.co_status} />
+      {/* Header */}
+      <div className="flex justify-between items-center mb-10">
+        <div>
+          <h1 className="text-3xl font-bold">AQI Dashboard</h1>
+          <p className="text-gray-400 text-sm">
+            Real-time Air Quality Monitoring
+          </p>
+        </div>
+
+        <div className="text-sm text-gray-400">
+          Last updated: {lastUpdated}
+        </div>
       </div>
+
+      {/* AQI Main Card */}
+      <div className="bg-slate-900 rounded-2xl p-10 shadow-xl mb-10 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-green-500 to-blue-500 blur-3xl"></div>
+
+        <div className="relative flex items-center justify-between">
+          <div>
+            <div className="text-gray-400 text-sm mb-2">Current AQI</div>
+
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping"></div>
+                <div className="relative text-6xl font-bold">
+                  {formattedAQI}
+                </div>
+              </div>
+
+              <div
+                className={`px-4 py-2 rounded-xl text-sm font-semibold ${getAQIColor(
+                  formattedAQI
+                )}`}
+              >
+                {getAQIStatus(formattedAQI)}
+              </div>
+            </div>
+          </div>
+
+          <div className="text-right text-gray-400 text-sm">
+            Device: device01 <br />
+            Interval: 10s <br />
+            Status: Live
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+
+        <StatCard label="PM1" value={Math.round(live?.pm1 ?? 0)} unit="µg/m³" />
+        <StatCard label="PM2.5" value={Math.round(live?.pm25 ?? 0)} unit="µg/m³" />
+        <StatCard label="PM10" value={Math.round(live?.pm10 ?? 0)} unit="µg/m³" />
+        <StatCard label="Temperature" value={formattedTemp} unit="°C" />
+        <StatCard label="Pressure" value={formattedPressure} unit="hPa" />
+        <StatCard label="CO Status" value={live?.co_status ?? "--"} unit="" />
+
+      </div>
+
+      {/* System Panel */}
+      <div className="bg-slate-900 p-6 rounded-2xl mt-10 shadow-lg">
+        <h3 className="text-lg font-semibold mb-4">System Status</h3>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-gray-400">
+          <div>Device ID: device01</div>
+          <div>Connection: Live</div>
+          <div>Data Source: ESP32</div>
+          <div>Backend: Firebase RTDB</div>
+        </div>
+      </div>
+
     </div>
   );
 }
 
-function StatCard({ title, value, highlight }) {
-
-  const getAqiColor = (aqi) => {
-    if (aqi <= 50) return "text-green-400";
-    if (aqi <= 100) return "text-yellow-400";
-    if (aqi <= 200) return "text-orange-400";
-    if (aqi <= 300) return "text-red-500";
-    return "text-purple-500";
-  };
-
+function StatCard({ label, value, unit }) {
   return (
-    <div className="bg-slate-800 p-6 rounded-2xl shadow-xl hover:scale-105 transition-all duration-300">
-      <div className="text-slate-400 text-sm">{title}</div>
-      <div
-        className={`text-4xl font-bold mt-2 ${
-          highlight ? getAqiColor(value) : ""
-        }`}
-      >
-        {value}
+    <div className="bg-slate-900 p-6 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-200">
+      <div className="text-gray-400 text-sm mb-2">{label}</div>
+      <div className="text-2xl font-semibold">
+        {value} {unit}
       </div>
     </div>
   );
