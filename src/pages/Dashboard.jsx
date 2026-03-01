@@ -81,9 +81,12 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-6">
               <div className="relative">
-                {isLive() && (
-                  <div className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping"></div>
-                )}
+                <div
+                  className={`absolute inset-0 rounded-full blur-2xl opacity-40 transition-all duration-500 ${
+                    isLive() ? "bg-green-500 animate-pulse" : "bg-red-500"
+                  }`}
+                ></div>
+
                 <div className="relative text-6xl font-bold">
                   {formattedAQI}
                 </div>

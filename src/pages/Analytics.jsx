@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { ref, onValue } from "firebase/database";
 import { app } from "../firebase";
 import { getDatabase } from "firebase/database";
-
-const db = getDatabase(app);
+import zoomPlugin from "chartjs-plugin-zoom";
 
 import {
   Chart as ChartJS,
@@ -14,6 +13,7 @@ import {
   Legend,
   Tooltip,
   Filler,
+  Title,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 
@@ -24,96 +24,51 @@ ChartJS.register(
   PointElement,
   Legend,
   Tooltip,
-  Filler
+  Filler,
+  Title,
+  zoomPlugin
 );
 
+const db = getDatabase(app);
+
 export default function Analytics() {
+  const chartRef = useRef(null);
   const [range, setRange] = useState("raw_10s");
   const [dataPoints, setDataPoints] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState({
     aqi: true,
-    pm1: false,
-    pm25: false,
-    pm10: false,
+    pm1: true,
+    pm25: true,
+    pm10: true,
   });
+
+  const isBucket = range !== "raw_10s";
 
   useEffect(() => {
     const dataRef = ref(db, `devices/device01/${range}`);
 
     const unsubscribe = onValue(dataRef, (snapshot) => {
-      if (!snapshot.exists()) return;
+      if (!snapshot.exists()) {
+        setDataPoints([]);
+        return;
+      }
 
       const raw = snapshot.val();
 
-      const sorted = Object.keys(raw)
+      const formatted = Object.keys(raw)
         .map((k) => ({
           timestamp: parseInt(k),
           ...raw[k],
         }))
         .sort((a, b) => a.timestamp - b.timestamp);
 
-      setDataPoints(sorted);
+      setDataPoints(formatted);
     });
 
     return () => unsubscribe();
   }, [range]);
 
-  // ----------------------------
-  // FIXED LABEL FORMATTING
-  // ----------------------------
-
-  const formatLabel = (timestamp) => {
-    const date = new Date(timestamp * 1000);
-
-    if (range === "raw_10s") {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-    }
-
-    if (range === "bucket_1min") {
-      // 24 hours → show date + hour
-      return date.toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-      });
-    }
-
-    // 7 days → show only date
-    return date.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const labels = dataPoints.map((d) => formatLabel(d.timestamp));
-
-  const buildRawDataset = (key, color) => ({
-    label: key.toUpperCase(),
-    data: dataPoints.map((d) => d[key]),
-    borderColor: color,
-    backgroundColor: color + "22",
-    tension: 0.4,
-    fill: true,
-    pointRadius: 3,
-    pointHoverRadius: 6,
-  });
-
-  const buildBucketDataset = (key, color) => ({
-    label: key.toUpperCase(),
-    data: dataPoints.map((d) => d[key]?.avg),
-    borderColor: color,
-    backgroundColor: color + "22",
-    tension: 0.4,
-    fill: true,
-    pointRadius: 3,
-    pointHoverRadius: 6,
-  });
-
-  const datasets = [];
+  const labels = dataPoints.map(() => "");
 
   const metricColors = {
     aqi: "#22c55e",
@@ -122,100 +77,140 @@ export default function Analytics() {
     pm10: "#ef4444",
   };
 
-  Object.keys(selectedMetrics).forEach((metric) => {
-    if (!selectedMetrics[metric]) return;
+  const metricNames = {
+    aqi: "Air Quality Index",
+    pm1: "PM1 (µg/m³)",
+    pm25: "PM2.5 (µg/m³)",
+    pm10: "PM10 (µg/m³)",
+  };
 
-    if (range === "raw_10s") {
-      datasets.push(buildRawDataset(metric, metricColors[metric]));
-    } else {
-      datasets.push(buildBucketDataset(metric, metricColors[metric]));
-    }
-  });
+  const activeMetrics = Object.keys(selectedMetrics).filter(
+    (m) => selectedMetrics[m]
+  );
+
+  const datasets = activeMetrics
+    .filter((metric) => !isBucket || metric === "aqi") // 🔥 only AQI in bucket
+    .map((metric) => ({
+      label: metricNames[metric],
+      data: dataPoints.map((d) =>
+        isBucket ? d.avg : d[metric]   // 🔥 bucket uses avg directly
+      ),
+      borderColor: metricColors[metric],
+      backgroundColor: metricColors[metric] + "22",
+      fill: true,
+      tension: 0.3,
+      borderWidth: 3,
+      pointRadius: dataPoints.length <= 2 ? 5 : 0,
+      pointHoverRadius: 6,
+    }));
+
+  const dynamicMax = useMemo(() => {
+    const allValues = datasets.flatMap((d) =>
+      d.data.filter((v) => typeof v === "number")
+    );
+    if (!allValues.length) return 100;
+    return Math.max(...allValues) * 1.2;
+  }, [datasets]);
+
+  const dynamicTitle = `Analytics - ${
+    range === "raw_10s"
+      ? "Last 1 Hour"
+      : range === "bucket_1min"
+      ? "Last 24 Hours"
+      : "Last 7 Days"
+  }`;
 
   return (
     <div className="p-8 text-white">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-xl">
+        <h1 className="text-2xl font-semibold mb-6 border-b border-slate-700 pb-3">
+          Air Quality Dashboard
+        </h1>
 
-      <h1 className="text-3xl font-bold mb-6">Analytics</h1>
+        {/* Range Buttons */}
+        <div className="flex gap-4 mb-6">
+          <RangeButton label="1 Hour" value="raw_10s" current={range} setRange={setRange} />
+          <RangeButton label="24 Hours" value="bucket_1min" current={range} setRange={setRange} />
+          <RangeButton label="7 Days" value="bucket_10min" current={range} setRange={setRange} />
+        </div>
 
-      {/* Range Selector */}
-      <div className="flex gap-4 mb-6">
-        <RangeButton label="1 Hour" value="raw_10s" current={range} setRange={setRange} />
-        <RangeButton label="24 Hours" value="bucket_1min" current={range} setRange={setRange} />
-        <RangeButton label="7 Days" value="bucket_10min" current={range} setRange={setRange} />
-      </div>
+        {/* Metric Toggles */}
+        {!isBucket && (
+          <div className="flex gap-6 mb-6 flex-wrap">
+            {Object.keys(selectedMetrics).map((metric) => (
+              <label key={metric} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedMetrics[metric]}
+                  onChange={() =>
+                    setSelectedMetrics({
+                      ...selectedMetrics,
+                      [metric]: !selectedMetrics[metric],
+                    })
+                  }
+                />
+                {metricNames[metric]}
+              </label>
+            ))}
+          </div>
+        )}
 
-      {/* Metric Toggles */}
-      <div className="flex gap-6 mb-6 flex-wrap">
-        {Object.keys(selectedMetrics).map((metric) => (
-          <label
-            key={metric}
-            className="flex items-center gap-2 cursor-pointer hover:scale-105 transition"
-          >
-            <input
-              type="checkbox"
-              checked={selectedMetrics[metric]}
-              onChange={() =>
-                setSelectedMetrics({
-                  ...selectedMetrics,
-                  [metric]: !selectedMetrics[metric],
-                })
-              }
-            />
-            {metric.toUpperCase()}
-          </label>
-        ))}
-      </div>
+        {/* Chart */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <Line
+            ref={chartRef}
+            data={{ labels, datasets }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: "index", intersect: false },
+              plugins: {
+                title: {
+                  display: true,
+                  text: dynamicTitle,
+                  color: "white",
+                  font: { size: 16, weight: "bold" },
+                  padding: { bottom: 20 },
+                },
+                legend: {
+                  labels: { color: "white" },
+                },
+                tooltip: {
+                  callbacks: {
+                    title: function (context) {
+                      const index = context[0].dataIndex;
+                      const epoch = dataPoints[index]?.timestamp;
+                      const date = new Date(epoch * 1000);
 
-      {/* Chart */}
-      <div className="bg-slate-900 p-6 rounded-2xl shadow-xl relative overflow-hidden">
-
-        <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-green-500 to-blue-500 blur-3xl"></div>
-
-        <Line
-          data={{
-            labels,
-            datasets,
-          }}
-          options={{
-            responsive: true,
-            animation: {
-              duration: 1200,
-              easing: "easeInOutQuart",
-            },
-            interaction: { mode: "index", intersect: false },
-            plugins: {
-              legend: {
-                labels: { color: "white" },
-              },
-              tooltip: {
-                backgroundColor: "#0f172a",
-                borderColor: "#22c55e",
-                borderWidth: 1,
-                callbacks: {
-                  title: function (context) {
-                    const index = context[0].dataIndex;
-                    const epoch = dataPoints[index]?.timestamp;
-                    return new Date(epoch * 1000).toLocaleString();
+                      return date.toLocaleString("en-GB");
+                    },
+                  },
+                },
+                zoom: {
+                  pan: { enabled: true, mode: "x" },
+                  zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: "x",
                   },
                 },
               },
-            },
-            scales: {
-              x: {
-                ticks: {
-                  color: "white",
-                  maxRotation: 45,
-                  minRotation: 45,
+              scales: {
+                x: {
+                  ticks: { display: false },
+                  grid: { display: false },
                 },
-                grid: { display: false },
+                y: {
+                  beginAtZero: true,
+                  suggestedMax: dynamicMax,
+                  ticks: { color: "white" },
+                  grid: { color: "rgba(255,255,255,0.08)" },
+                },
               },
-              y: {
-                ticks: { color: "white" },
-                grid: { color: "rgba(255,255,255,0.05)" },
-              },
-            },
-          }}
-        />
+            }}
+            height={420}
+          />
+        </div>
       </div>
     </div>
   );
@@ -225,10 +220,10 @@ function RangeButton({ label, value, current, setRange }) {
   return (
     <button
       onClick={() => setRange(value)}
-      className={`px-4 py-2 rounded-xl transition-all duration-300 ${
+      className={`px-4 py-2 rounded-lg transition ${
         current === value
-          ? "bg-green-500 text-black scale-105"
-          : "bg-slate-800 hover:bg-slate-700"
+          ? "bg-green-500 text-black"
+          : "bg-slate-700 hover:bg-slate-600"
       }`}
     >
       {label}
