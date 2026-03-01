@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { ref, onValue } from "firebase/database";
-import { db } from "../firebase";
+import { app } from "../firebase";
+import { getDatabase } from "firebase/database";
+
+const db = getDatabase(app);
 
 export default function Devices() {
   const [data, setData] = useState(null);

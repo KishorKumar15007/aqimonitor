@@ -25,9 +25,17 @@ export default function Dashboard() {
     ? Number(live.temp).toFixed(1)
     : "0.0";
 
+  // ✅ FULL DATE + TIME
   const lastUpdated = live?.timestamp
-    ? new Date(live.timestamp * 1000).toLocaleTimeString()
+    ? new Date(live.timestamp * 1000).toLocaleString()
     : "--";
+
+  // ✅ LIVE DETECTION (20 second freshness window)
+  const isLive = () => {
+    if (!live?.timestamp) return false;
+    const now = Math.floor(Date.now() / 1000);
+    return now - live.timestamp < 20;
+  };
 
   function getAQIColor(aqi) {
     if (aqi <= 50) return "bg-green-500";
@@ -57,8 +65,9 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="text-sm text-gray-400">
-          Last updated: {lastUpdated}
+        <div className="text-sm text-gray-400 text-right">
+          <div>Last updated:</div>
+          <div className="font-medium text-white">{lastUpdated}</div>
         </div>
       </div>
 
@@ -72,7 +81,9 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-6">
               <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping"></div>
+                {isLive() && (
+                  <div className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping"></div>
+                )}
                 <div className="relative text-6xl font-bold">
                   {formattedAQI}
                 </div>
@@ -88,10 +99,19 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="text-right text-gray-400 text-sm">
-            Device: device01 <br />
-            Interval: 10s <br />
-            Status: Live
+          <div className="text-right text-sm">
+            <div className="text-gray-400">Device: device01</div>
+            <div className="text-gray-400">Interval: 10s</div>
+
+            <div className="mt-2">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  isLive() ? "bg-green-500" : "bg-red-500"
+                }`}
+              >
+                {isLive() ? "LIVE" : "OFFLINE"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -114,7 +134,12 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-gray-400">
           <div>Device ID: device01</div>
-          <div>Connection: Live</div>
+          <div>
+            Connection:{" "}
+            <span className={isLive() ? "text-green-400" : "text-red-400"}>
+              {isLive() ? "Active" : "Disconnected"}
+            </span>
+          </div>
           <div>Data Source: ESP32</div>
           <div>Backend: Firebase RTDB</div>
         </div>
