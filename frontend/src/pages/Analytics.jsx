@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { ref, onValue } from "firebase/database";
-import { app } from "../firebase";
+import { app } from "../services/firebase";
 import { getDatabase } from "firebase/database";
 import zoomPlugin from "chartjs-plugin-zoom";
 
@@ -15,6 +15,7 @@ import {
   Filler,
   Title,
 } from "chart.js";
+
 import { Line } from "react-chartjs-2";
 
 ChartJS.register(
@@ -33,8 +34,10 @@ const db = getDatabase(app);
 
 export default function Analytics() {
   const chartRef = useRef(null);
+
   const [range, setRange] = useState("raw_10s");
   const [dataPoints, setDataPoints] = useState([]);
+
   const [selectedMetrics, setSelectedMetrics] = useState({
     aqi: true,
     pm1: true,
@@ -55,11 +58,30 @@ export default function Analytics() {
 
       const raw = snapshot.val();
 
+      const now = Math.floor(Date.now() / 1000);
+
+      let timeWindow = 3600;
+
+      if (range === "bucket_1min") {
+        timeWindow = 86400;
+      }
+
+      if (range === "bucket_10min") {
+        timeWindow = 604800;
+      }
+
+      const cutoff = now - timeWindow;
+
       const formatted = Object.keys(raw)
         .map((k) => ({
           timestamp: parseInt(k),
           ...raw[k],
         }))
+        .filter(
+          (d) =>
+            d.timestamp >= cutoff &&
+            d.timestamp <= now
+        )
         .sort((a, b) => a.timestamp - b.timestamp);
 
       setDataPoints(formatted);
@@ -68,7 +90,9 @@ export default function Analytics() {
     return () => unsubscribe();
   }, [range]);
 
-  const labels = dataPoints.map(() => "");
+  const labels = dataPoints.map((d) =>
+    new Date(d.timestamp * 1000).toLocaleTimeString()
+  );
 
   const metricColors = {
     aqi: "#22c55e",
@@ -89,11 +113,11 @@ export default function Analytics() {
   );
 
   const datasets = activeMetrics
-    .filter((metric) => !isBucket || metric === "aqi") // 🔥 only AQI in bucket
+    .filter((metric) => !isBucket || metric === "aqi")
     .map((metric) => ({
       label: metricNames[metric],
       data: dataPoints.map((d) =>
-        isBucket ? d.avg : d[metric]   // 🔥 bucket uses avg directly
+        isBucket ? d.avg : d[metric]
       ),
       borderColor: metricColors[metric],
       backgroundColor: metricColors[metric] + "22",
@@ -108,7 +132,9 @@ export default function Analytics() {
     const allValues = datasets.flatMap((d) =>
       d.data.filter((v) => typeof v === "number")
     );
+
     if (!allValues.length) return 100;
+
     return Math.max(...allValues) * 1.2;
   }, [datasets]);
 
@@ -123,22 +149,41 @@ export default function Analytics() {
   return (
     <div className="p-8 text-white">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-xl">
+
         <h1 className="text-2xl font-semibold mb-6 border-b border-slate-700 pb-3">
           Air Quality Dashboard
         </h1>
 
-        {/* Range Buttons */}
         <div className="flex gap-4 mb-6">
-          <RangeButton label="1 Hour" value="raw_10s" current={range} setRange={setRange} />
-          <RangeButton label="24 Hours" value="bucket_1min" current={range} setRange={setRange} />
-          <RangeButton label="7 Days" value="bucket_10min" current={range} setRange={setRange} />
+          <RangeButton
+            label="1 Hour"
+            value="raw_10s"
+            current={range}
+            setRange={setRange}
+          />
+
+          <RangeButton
+            label="24 Hours"
+            value="bucket_1min"
+            current={range}
+            setRange={setRange}
+          />
+
+          <RangeButton
+            label="7 Days"
+            value="bucket_10min"
+            current={range}
+            setRange={setRange}
+          />
         </div>
 
-        {/* Metric Toggles */}
         {!isBucket && (
           <div className="flex gap-6 mb-6 flex-wrap">
             {Object.keys(selectedMetrics).map((metric) => (
-              <label key={metric} className="flex items-center gap-2 cursor-pointer">
+              <label
+                key={metric}
+                className="flex items-center gap-2 cursor-pointer"
+              >
                 <input
                   type="checkbox"
                   checked={selectedMetrics[metric]}
@@ -149,32 +194,50 @@ export default function Analytics() {
                     })
                   }
                 />
+
                 {metricNames[metric]}
               </label>
             ))}
           </div>
         )}
 
-        {/* Chart */}
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+
           <Line
             ref={chartRef}
-            data={{ labels, datasets }}
+            data={{
+              labels,
+              datasets,
+            }}
             options={{
               responsive: true,
               maintainAspectRatio: false,
-              interaction: { mode: "index", intersect: false },
+
+              interaction: {
+                mode: "index",
+                intersect: false,
+              },
+
               plugins: {
                 title: {
                   display: true,
                   text: dynamicTitle,
                   color: "white",
-                  font: { size: 16, weight: "bold" },
-                  padding: { bottom: 20 },
+                  font: {
+                    size: 16,
+                    weight: "bold",
+                  },
+                  padding: {
+                    bottom: 20,
+                  },
                 },
+
                 legend: {
-                  labels: { color: "white" },
+                  labels: {
+                    color: "white",
+                  },
                 },
+
                 tooltip: {
                   callbacks: {
                     title: function (context) {
@@ -186,30 +249,55 @@ export default function Analytics() {
                     },
                   },
                 },
+
                 zoom: {
-                  pan: { enabled: true, mode: "x" },
+                  pan: {
+                    enabled: true,
+                    mode: "x",
+                  },
+
                   zoom: {
-                    wheel: { enabled: true },
-                    pinch: { enabled: true },
+                    wheel: {
+                      enabled: true,
+                    },
+
+                    pinch: {
+                      enabled: true,
+                    },
+
                     mode: "x",
                   },
                 },
               },
+
               scales: {
                 x: {
-                  ticks: { display: false },
-                  grid: { display: false },
+                  ticks: {
+                    display: false,
+                  },
+
+                  grid: {
+                    display: false,
+                  },
                 },
+
                 y: {
                   beginAtZero: true,
                   suggestedMax: dynamicMax,
-                  ticks: { color: "white" },
-                  grid: { color: "rgba(255,255,255,0.08)" },
+
+                  ticks: {
+                    color: "white",
+                  },
+
+                  grid: {
+                    color: "rgba(255,255,255,0.08)",
+                  },
                 },
               },
             }}
             height={420}
           />
+
         </div>
       </div>
     </div>

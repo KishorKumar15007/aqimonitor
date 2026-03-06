@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { getDatabase, ref, onValue } from "firebase/database";
-import { app } from "../firebase";
-
-const db = getDatabase(app);
+import { app } from "../services/firebase";
+import { db } from "../services/firebase";
 
 export default function Dashboard() {
   const [live, setLive] = useState(null);
@@ -13,6 +12,8 @@ export default function Dashboard() {
     const unsubscribe = onValue(liveRef, (snapshot) => {
       if (snapshot.exists()) {
         setLive(snapshot.val());
+      } else {
+        setLive(null);
       }
     });
 
@@ -25,17 +26,17 @@ export default function Dashboard() {
     ? Number(live.temp).toFixed(1)
     : "0.0";
 
-  // ✅ FULL DATE + TIME
   const lastUpdated = live?.timestamp
     ? new Date(live.timestamp * 1000).toLocaleString()
     : "--";
 
-  // ✅ LIVE DETECTION (20 second freshness window)
-  const isLive = () => {
+  function isLive() {
     if (!live?.timestamp) return false;
+
     const now = Math.floor(Date.now() / 1000);
+
     return now - live.timestamp < 20;
-  };
+  }
 
   function getAQIColor(aqi) {
     if (aqi <= 50) return "bg-green-500";
@@ -71,25 +72,35 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* AQI Main Card */}
+      {/* AQI Card */}
       <div className="bg-slate-900 rounded-2xl p-10 shadow-xl mb-10 relative overflow-hidden">
+
         <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-green-500 to-blue-500 blur-3xl"></div>
 
         <div className="relative flex items-center justify-between">
+
           <div>
-            <div className="text-gray-400 text-sm mb-2">Current AQI</div>
+
+            <div className="text-gray-400 text-sm mb-2">
+              Current AQI
+            </div>
 
             <div className="flex items-center gap-6">
+
               <div className="relative">
+
                 <div
                   className={`absolute inset-0 rounded-full blur-2xl opacity-40 transition-all duration-500 ${
-                    isLive() ? "bg-green-500 animate-pulse" : "bg-red-500"
+                    isLive()
+                      ? "bg-green-500 animate-pulse"
+                      : "bg-red-500"
                   }`}
                 ></div>
 
                 <div className="relative text-6xl font-bold">
                   {formattedAQI}
                 </div>
+
               </div>
 
               <div
@@ -99,23 +110,35 @@ export default function Dashboard() {
               >
                 {getAQIStatus(formattedAQI)}
               </div>
+
             </div>
+
           </div>
 
           <div className="text-right text-sm">
-            <div className="text-gray-400">Device: device01</div>
-            <div className="text-gray-400">Interval: 10s</div>
+
+            <div className="text-gray-400">
+              Device: device01
+            </div>
+
+            <div className="text-gray-400">
+              Interval: 10s
+            </div>
 
             <div className="mt-2">
               <span
                 className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  isLive() ? "bg-green-500" : "bg-red-500"
+                  isLive()
+                    ? "bg-green-500"
+                    : "bg-red-500"
                 }`}
               >
                 {isLive() ? "LIVE" : "OFFLINE"}
               </span>
             </div>
+
           </div>
+
         </div>
       </div>
 
@@ -123,29 +146,49 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
 
         <StatCard label="PM1" value={Math.round(live?.pm1 ?? 0)} unit="µg/m³" />
+
         <StatCard label="PM2.5" value={Math.round(live?.pm25 ?? 0)} unit="µg/m³" />
+
         <StatCard label="PM10" value={Math.round(live?.pm10 ?? 0)} unit="µg/m³" />
+
         <StatCard label="Temperature" value={formattedTemp} unit="°C" />
+
         <StatCard label="Pressure" value={formattedPressure} unit="hPa" />
+
         <StatCard label="CO Status" value={live?.co_status ?? "--"} unit="" />
 
       </div>
 
-      {/* System Panel */}
+      {/* System Status */}
       <div className="bg-slate-900 p-6 rounded-2xl mt-10 shadow-lg">
-        <h3 className="text-lg font-semibold mb-4">System Status</h3>
+
+        <h3 className="text-lg font-semibold mb-4">
+          System Status
+        </h3>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-gray-400">
+
           <div>Device ID: device01</div>
+
           <div>
             Connection:{" "}
-            <span className={isLive() ? "text-green-400" : "text-red-400"}>
+            <span
+              className={
+                isLive()
+                  ? "text-green-400"
+                  : "text-red-400"
+              }
+            >
               {isLive() ? "Active" : "Disconnected"}
             </span>
           </div>
+
           <div>Data Source: ESP32</div>
+
           <div>Backend: Firebase RTDB</div>
+
         </div>
+
       </div>
 
     </div>
@@ -155,10 +198,15 @@ export default function Dashboard() {
 function StatCard({ label, value, unit }) {
   return (
     <div className="bg-slate-900 p-6 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-200">
-      <div className="text-gray-400 text-sm mb-2">{label}</div>
+
+      <div className="text-gray-400 text-sm mb-2">
+        {label}
+      </div>
+
       <div className="text-2xl font-semibold">
         {value} {unit}
       </div>
+
     </div>
   );
 }

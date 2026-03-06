@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { app } from "../firebase";
+import { app } from "../services/firebase";
 import { getDatabase, ref, onValue } from "firebase/database";
 
-const db = getDatabase(app);
+import { db } from "../services/firebase";
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState([]);
